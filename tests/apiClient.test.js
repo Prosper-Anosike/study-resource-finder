@@ -253,29 +253,131 @@ test("empty or absent result collections return an empty array", async () => {
   assert.deepEqual(await searchGoogleBooks(" ", { fetchImpl }), []);
 });
 
-test("HTTP, network, and malformed JSON failures are explicit", async () => {
-  const httpFailure = mockFetch(() =>
-    mockResponse(
-      {},
-      {
-        ok: false,
-        status: 429,
-        statusText: `${TEST_GOOGLE_BOOKS_API_KEY} Too Many Requests`,
-      },
-    ),
-  );
+test("Google Books HTTP errors preserve status and provide actionable guidance", async () => {
+  const cases = [
+    [400, "Bad Request", "The search request was not accepted", "invalidQuery"],
+    [403, "Forbidden", "API access was denied", "keyInvalid"],
+    [
+      429,
+      "Too Many Requests",
+      "A rate or quota limit was reached",
+      "rateLimitExceeded",
+    ],
+    [
+      503,
+      "Service Unavailable",
+      "Google Books is temporarily unavailable. Try again later.",
+      "backendError",
+    ],
+  ];
+
+  for (const [status, statusText, guidance, reason] of cases) {
+    let requests = 0;
+    const fetchImpl = async () => {
+      requests += 1;
+      return mockResponse(
+        {
+          error: {
+            code: status,
+            message: `Provider message for ${reason}`,
+            errors: [{ reason, message: `Provider message for ${reason}` }],
+          },
+        },
+        { ok: false, status, statusText },
+      );
+    };
+
+    await assert.rejects(
+      searchGoogleBooks(`failure-${status}`, {
+        fetchImpl,
+        apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+      }),
+      (error) =>
+        error instanceof ApiRequestError &&
+        error.source === "Google Books" &&
+        error.status === status &&
+        error.message.includes(`HTTP ${status}`) &&
+        error.message.includes(guidance) &&
+        error.message.includes(`reason: ${reason}`),
+    );
+    assert.equal(requests, 1, `HTTP ${status} must not be retried`);
+  }
+});
+
+test("Google Books error diagnostics tolerate non-JSON bodies", async () => {
+  const fetchImpl = async () => ({
+    ok: false,
+    status: 503,
+    statusText: "Service Unavailable",
+    json: async () => {
+      throw new SyntaxError("not JSON");
+    },
+  });
+
   await assert.rejects(
-    searchGoogleBooks("http-error", {
-      fetchImpl: httpFailure.fetchImpl,
+    searchGoogleBooks("non-json-error", {
+      fetchImpl,
       apiKey: TEST_GOOGLE_BOOKS_API_KEY,
     }),
     (error) =>
       error instanceof ApiRequestError &&
-      error.source === "Google Books" &&
-      error.status === 429 &&
-      !error.message.includes(TEST_GOOGLE_BOOKS_API_KEY),
+      error.status === 503 &&
+      error.message.includes("HTTP 503") &&
+      error.message.includes("temporarily unavailable") &&
+      !error.message.includes("not JSON"),
   );
+});
 
+test("Google Books diagnostics redact credentials and request URLs", async () => {
+  const injectedCredential = "AIzaSyFAKEcredential0123456789abcdefgh";
+  const fetchImpl = async () =>
+    mockResponse(
+      {
+        error: {
+          message: `Failed URL https://example.invalid/path?q=term&key=${injectedCredential}; credential ${injectedCredential}`,
+          errors: [{ reason: `key=${injectedCredential}` }],
+        },
+      },
+      { ok: false, status: 400, statusText: "Bad Request" },
+    );
+
+  await assert.rejects(
+    searchGoogleBooks("redaction-test", {
+      fetchImpl,
+      apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+    }),
+    (error) =>
+      error instanceof ApiRequestError &&
+      !error.message.includes(injectedCredential) &&
+      !error.message.includes(TEST_GOOGLE_BOOKS_API_KEY) &&
+      !error.message.includes("https://example.invalid") &&
+      !error.message.includes("q=term"),
+  );
+});
+
+test("Google Books network diagnostics redact credentials and request URLs", async () => {
+  const fetchImpl = async () => {
+    throw new Error(
+      `Failed https://example.invalid/path?q=term&key=${TEST_GOOGLE_BOOKS_API_KEY} with token=ya29.fakeTokenValue0123456789`,
+    );
+  };
+
+  await assert.rejects(
+    searchGoogleBooks("network-redaction-test", {
+      fetchImpl,
+      apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+    }),
+    (error) =>
+      error instanceof ApiRequestError &&
+      error.status === null &&
+      !error.message.includes(TEST_GOOGLE_BOOKS_API_KEY) &&
+      !error.message.includes("https://example.invalid") &&
+      !error.message.includes("q=term") &&
+      !error.message.includes("ya29.fakeTokenValue0123456789"),
+  );
+});
+
+test("HTTP, network, and malformed JSON failures are explicit", async () => {
   const networkFailure = async () => {
     throw new Error("offline");
   };
@@ -316,7 +418,8 @@ test("combined search retains successful results and reports the failed provider
   assert.deepEqual(result.warnings, [
     {
       source: "Google Books",
-      message: "Google Books request failed: Unavailable",
+      message:
+        "Google Books request failed: HTTP 503: Google Books is temporarily unavailable. Try again later.",
     },
   ]);
 });

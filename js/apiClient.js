@@ -72,6 +72,78 @@ function redactValues(value, values) {
   );
 }
 
+function sanitizeErrorText(value, sensitiveValues) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return redactValues(value, sensitiveValues)
+    .replace(/https?:\/\/[^\s"'<>]+/gi, "[URL redacted]")
+    .replace(
+      /\b(?:api[_-]?key|key|access[_-]?token|token|client[_-]?secret|secret)\s*[:=]\s*["']?[^&,\s"'<>]+["']?/gi,
+      "[credential redacted]",
+    )
+    .replace(/\bAIza[0-9A-Za-z_-]{20,}\b/g, "[credential redacted]")
+    .replace(/\bAKIA[0-9A-Z]{16}\b/g, "[credential redacted]")
+    .replace(/\bgh[pousr]_[A-Za-z0-9]{20,}\b/g, "[credential redacted]")
+    .replace(/\bya29\.[A-Za-z0-9._-]+/g, "[credential redacted]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 300);
+}
+
+function getGoogleBooksErrorDetails(payload, sensitiveValues) {
+  const error = payload?.error;
+  if (!error || typeof error !== "object") {
+    return { message: "", reason: "" };
+  }
+
+  const message = sanitizeErrorText(error.message, sensitiveValues);
+  const reasons = Array.isArray(error.errors)
+    ? error.errors
+        .map((item) => sanitizeErrorText(item?.reason, sensitiveValues))
+        .filter(Boolean)
+    : [];
+  return { message, reason: reasons[0] ?? "" };
+}
+
+function formatHttpError(source, status, statusText, payload, sensitiveValues) {
+  const httpStatus = Number.isFinite(status) ? status : null;
+  if (source !== "Google Books") {
+    const detail = sanitizeErrorText(statusText, sensitiveValues);
+    return httpStatus === null
+      ? detail || "HTTP error."
+      : `HTTP ${httpStatus}${detail ? `: ${detail}` : " error."}`;
+  }
+
+  const messages = {
+    400: "The search request was not accepted. Check the search terms and try again.",
+    403: "API access was denied. Check the Google Books API key restrictions and API configuration.",
+    429: "A rate or quota limit was reached. Wait before trying again; requests are not retried automatically.",
+    503: "Google Books is temporarily unavailable. Try again later.",
+  };
+  const baseMessage =
+    messages[httpStatus] ??
+    (httpStatus === null
+      ? "The provider returned an unsuccessful response."
+      : "The provider returned an unsuccessful response.");
+  const { message, reason } = getGoogleBooksErrorDetails(
+    payload,
+    sensitiveValues,
+  );
+  const details = [];
+  if (message) {
+    details.push(`Google message: ${message}`);
+  }
+  if (reason) {
+    details.push(`reason: ${reason}`);
+  }
+  const statusLabel = httpStatus === null ? "" : `HTTP ${httpStatus}: `;
+  return `${statusLabel}${baseMessage}${
+    details.length ? ` ${details.join("; ")}` : ""
+  }`;
+}
+
 async function fetchJson(url, source, fetchImpl, sensitiveValues = []) {
   const cache = getRequestCache(fetchImpl);
   const cacheKey = url.href;
@@ -87,7 +159,7 @@ async function fetchJson(url, source, fetchImpl, sensitiveValues = []) {
     } catch (error) {
       throw new ApiRequestError(
         source,
-        redactValues(
+        sanitizeErrorText(
           error instanceof Error ? error.message : "Network error.",
           sensitiveValues,
         ),
@@ -95,9 +167,23 @@ async function fetchJson(url, source, fetchImpl, sensitiveValues = []) {
     }
 
     if (!response?.ok) {
+      let errorPayload = null;
+      if (source === "Google Books" && typeof response?.json === "function") {
+        try {
+          errorPayload = await response.json();
+        } catch {
+          errorPayload = null;
+        }
+      }
       throw new ApiRequestError(
         source,
-        redactValues(response?.statusText || "HTTP error.", sensitiveValues),
+        formatHttpError(
+          source,
+          response?.status,
+          response?.statusText,
+          errorPayload,
+          sensitiveValues,
+        ),
         Number.isFinite(response?.status) ? response.status : null,
       );
     }
