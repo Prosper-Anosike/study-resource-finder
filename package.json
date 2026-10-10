@@ -1,0 +1,20 @@
+{
+  "name": "study-resource-finder",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint js tests eslint.config.js",
+    "format": "prettier --write index.html favorites.html README.md package.json eslint.config.js css js tests",
+    "format:check": "prettier --check index.html favorites.html README.md package.json eslint.config.js css js tests",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "eslint": "^9.25.0",
+    "prettier": "^3.5.3",
+    "vite": "^6.2.6"
+  }
+}

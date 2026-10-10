@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="View your saved study resources." />
+    <meta name="theme-color" content="#f9fafb" />
+    <title>Favorites | Study Resource Finder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Study Resource Finder home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path
+                d="M5.5 8.5c4.1-.9 7.6-.2 10.5 2.1v15c-2.9-2.3-6.4-3-10.5-2.1v-15Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M26.5 8.5c-4.1-.9-7.6-.2-10.5 2.1v15c2.9-2.3 6.4-3 10.5-2.1v-15Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="brand-name">Study<span>Finder</span></span>
+        </a>
+        <nav class="primary-nav" aria-label="Main navigation">
+          <a class="nav-link" href="/">Discover</a>
+          <a
+            class="nav-link nav-link-active"
+            href="/favorites.html"
+            aria-current="page"
+            >Favorites</a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content" class="page-shell favorites-page">
+      <section
+        class="intro-section favorites-intro"
+        aria-labelledby="page-title"
+      >
+        <p class="eyebrow">Your personal reading list</p>
+        <h1 id="page-title">Saved <span>favorites.</span></h1>
+        <p class="intro-copy">Keep the resources you love close at hand.</p>
+      </section>
+      <section
+        class="results-section favorites-section"
+        aria-labelledby="favorites-heading"
+      >
+        <div class="results-heading-row">
+          <div>
+            <h2 id="favorites-heading">Your favorites</h2>
+            <p
+              id="favorites-count"
+              class="results-subtitle"
+              role="status"
+              aria-live="polite"
+            >
+              Loading your favorites…
+            </p>
+          </div>
+        </div>
+        <p
+          id="favorites-feedback"
+          class="status-message favorites-feedback"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></p>
+        <div
+          id="favorites-empty"
+          class="empty-state favorites-empty"
+          role="status"
+        >
+          <span class="empty-icon heart-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none">
+              <path
+                d="M24 39s-15-9.3-15-20.1A8.1 8.1 0 0 1 24 14a8.1 8.1 0 0 1 15 4.9C39 29.7 24 39 24 39Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <h3>No favorites just yet.</h3>
+          <p>
+            When you find a resource worth keeping, save it and it will show up
+            here.
+          </p>
+          <a class="button button-primary" href="/">Discover resources</a>
+        </div>
+        <div id="favorites-list" class="resource-grid" aria-live="polite"></div>
+      </section>
+    </main>
+    <dialog
+      id="resource-details"
+      class="details-dialog"
+      aria-labelledby="details-title"
+    >
+      <div class="dialog-header">
+        <h2 id="details-title">Resource details</h2>
+        <button
+          id="details-close"
+          class="button button-secondary"
+          type="button"
+        >
+          Close
+        </button>
+      </div>
+      <div id="details-content" class="details-content"></div>
+    </dialog>
+    <script type="module" src="/js/favorites.js"></script>
+  </body>
+</html>
