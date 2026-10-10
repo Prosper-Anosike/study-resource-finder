@@ -27,6 +27,49 @@ npm run build
 
 The static production output is written to `dist/`.
 
+## Render static-site deployment
+
+Create a **Static Site** in Render connected to this GitHub repository and configure:
+
+| Setting              | Value                                                   |
+| -------------------- | ------------------------------------------------------- |
+| Build command        | `npm install && npm run build`                          |
+| Publish directory    | `dist`                                                  |
+| Environment variable | `VITE_GOOGLE_BOOKS_API_KEY` = your Google Books API key |
+
+Add the environment variable in the Render service dashboard; do not commit it to the repository. Vite embeds `VITE_` variables into the browser bundle at build time, so changing this value requires a new build/deploy. The key is visible to users of the deployed site and must be restricted in Google Cloud: limit the key to the **Google Books API** and configure an HTTP referrer website restriction for the final site, such as `https://<your-service-name>.onrender.com/*`. If using a custom domain, include its HTTPS referrer pattern as well. Keep localhost referrers only if they are still needed for local development, and never use an unrestricted production key.
+
+After deployment, open the assigned site domain, check the browser Network panel for a successful Google Books request and an Open Library search response, then exercise search, resource details, filters, and Favorites. Deployment and a final domain/key restriction have not been completed by this repository setup; those steps require access to your Render and Google Cloud accounts.
+
+## Trello planning evidence
+
+For course submission, provide the real Trello board link and make the planning trail reviewable. The board should show the project goal, phase/feature cards, acceptance criteria or checklists, progress/status, and completed work. Keep useful evidence such as links to the repository/deployed site and dated screenshots or a short completion note on the relevant cards. Do not claim Trello work is complete until the board has been updated and its link is ready to submit.
+
+## Five-minute demonstration outline
+
+Use this as a timed recording guide; it is an outline, not a recorded video:
+
+| Time      | Demonstration                                                                                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0:00–0:30 | Introduce Study Resource Finder and its purpose: helping students discover study books and learning resources.                                                   |
+| 0:30–1:05 | Identify Google Books and Open Library, then explain that their responses are normalized into one resource shape with provider-specific IDs and metadata arrays. |
+| 1:05–1:55 | Search for a topic, show dynamic results from both sources, source labels, useful metadata, and the loading/result feedback.                                     |
+| 1:55–2:35 | Open a resource's Details dialog, show available metadata and safe provider links, then close it with Escape.                                                    |
+| 2:35–3:20 | Demonstrate a subject/category or year filter, availability, sorting, and reset; show the no-match state if time permits.                                        |
+| 3:20–4:05 | Save a couple of resources, open Favorites, refresh to demonstrate LocalStorage persistence, then remove one.                                                    |
+| 4:05–4:40 | Resize or switch to mobile layout; point out responsive cards, keyboard focus, and restrained effects/reduced-motion support.                                    |
+| 4:40–5:00 | Summarize the result and identify the repository, deployed site, Trello board, and video as submission artifacts.                                                |
+
+Before recording, verify the deployed API key restriction against the final domain, use a reliable search query, avoid exposing credentials in browser tools, and confirm the Favorites page is in the intended demo state.
+
+## Final submission checklist
+
+- [ ] GitHub repository contains the final project and is accessible to the instructor.
+- [ ] Render static site is deployed; its real URL is recorded for submission and both API integrations are checked there.
+- [ ] Google Cloud API key is restricted to Google Books and to the final Render/custom-domain HTTP referrers.
+- [ ] Trello board contains the project plan, acceptance/progress evidence, and is accessible to the instructor.
+- [ ] Approximately five-minute demonstration video is recorded, reviewed for accidental credentials, and its real link is ready to submit.
+
 ## Architecture
 
 ```text

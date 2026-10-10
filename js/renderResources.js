@@ -53,7 +53,6 @@ function createCover(resource) {
   cover.className = "resource-cover";
   const fallback = document.createElement("span");
   fallback.className = "cover-fallback";
-  fallback.setAttribute("aria-hidden", "true");
   fallback.textContent = "Book cover unavailable";
 
   if (resource.thumbnail && isSafeResourceImage(resource.thumbnail)) {

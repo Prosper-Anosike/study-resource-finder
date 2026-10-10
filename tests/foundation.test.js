@@ -103,3 +103,16 @@ test("the pages expose focusable navigation and a labeled search form", async ()
   assert.match(css, /\.resource-favorite-button:focus-visible/);
   assert.match(css, /\.resource-link:focus-visible/);
 });
+
+test("missing book-cover fallback text remains available to assistive technology", async () => {
+  const renderer = await readFile(
+    new URL("js/renderResources.js", root),
+    "utf8",
+  );
+
+  assert.match(renderer, /fallback\.textContent = "Book cover unavailable"/);
+  assert.doesNotMatch(
+    renderer,
+    /fallback\.setAttribute\("aria-hidden", "true"\)/,
+  );
+});
