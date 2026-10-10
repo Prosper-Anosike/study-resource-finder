@@ -65,3 +65,41 @@ test("the shared stylesheet declares the proposal design tokens", async () => {
     assert.ok(css.includes(token), `Expected stylesheet to declare ${token}`);
   }
 });
+
+test("the stylesheet provides purposeful effects and honors reduced motion", async () => {
+  const css = await readFile(new URL("css/styles.css", root), "utf8");
+
+  assert.match(css, /\.resource-card:hover\s*\{[^}]*transform:\s*translateY/s);
+  assert.match(
+    css,
+    /\.resource-card:hover \.resource-cover img\s*\{[^}]*scale/s,
+  );
+  assert.match(css, /\.resource-favorite-button\.is-favorited\s*\{/);
+  assert.match(css, /\.details-dialog\[open\]\s*\{\s*animation:/);
+  assert.match(css, /\.loading-spinner\s*\{[^}]*animation:/s);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /animation-duration:\s*0\.01ms !important/);
+  assert.match(css, /@media \(min-width: 701px\) and \(max-width: 960px\)/);
+  assert.match(
+    css,
+    /\.resource-card-content > \.resource-details-button\s*\{[^}]*min-height:\s*40px/s,
+  );
+});
+
+test("the pages expose focusable navigation and a labeled search form", async () => {
+  const [home, favorites, css] = await Promise.all([
+    readFile(new URL("index.html", root), "utf8"),
+    readFile(new URL("favorites.html", root), "utf8"),
+    readFile(new URL("css/styles.css", root), "utf8"),
+  ]);
+
+  assert.match(home, /<a class="skip-link" href="#main-content">/);
+  assert.match(home, /<nav class="primary-nav" aria-label="Main navigation">/);
+  assert.match(home, /<label class="visually-hidden"\s+for="search-query"\s*>/);
+  assert.match(home, /<label class="visually-hidden"\s+for="search-type"\s*>/);
+  assert.match(home, /aria-current="page"/);
+  assert.match(favorites, /aria-current="page"/);
+  assert.match(css, /\.button:focus-visible/);
+  assert.match(css, /\.resource-favorite-button:focus-visible/);
+  assert.match(css, /\.resource-link:focus-visible/);
+});
