@@ -1,131 +1,195 @@
 # Study Resource Finder
 
-A responsive student-facing resource discovery app. The project uses semantic HTML, CSS, and native JavaScript ES modules to search Google Books and Open Library, inspect resources, filter and sort results, and save favorites locally.
+Study Resource Finder makes it easier for students to discover books and learning resources in one place. Search across Google Books and Open Library, explore resource details, filter results, and save favorites to revisit later.
 
-## Requirements
+**[Visit the live application](https://study-resource-finder-spvl.onrender.com/)**
 
-- Node.js 20.19+ or 22.12+ and npm
-- A modern browser
-- No JavaScript UI framework
+## Features
 
-## Setup
+- **Search:** Find books and learning resources using Google Books and Open Library.
+- **Resource details:** Explore available information, including authors, descriptions, publication dates, categories, and links to the original sources.
+- **Filtering and sorting:** Narrow results by category, publication year, and full-text availability, then organize them using the available sorting options.
+- **Favorites:** Save resources and revisit them on a dedicated Favorites page. Saved items remain available after refreshing the browser.
+- **Responsive design:** Use the application on desktop computers, tablets, and mobile devices.
+- **Accessible interface:** Navigate interactive elements using the keyboard and benefit from clear interface feedback and reduced-motion support.
+- **Reliable search feedback:** Loading indicators, error messages, and provider-specific warnings help explain what is happening when a search succeeds or encounters a problem.
 
-```sh
+## Built With
+
+- **HTML5** for semantic page structure.
+- **CSS3** for styling, responsive layouts, and interface effects.
+- **JavaScript ES modules** for application logic and interactive features.
+- **Vite** for local development and production builds.
+- **Google Books API** and **Open Library Search API** for book data.
+- **LocalStorage** for saving favorites in the browser.
+
+The application uses vanilla JavaScript without a JavaScript UI framework.
+
+## Getting Started
+
+### Prerequisites
+
+Make sure you have the following installed:
+
+- Node.js 20.19+ or 22.12+
+- npm
+- A modern web browser
+
+### Installation
+
+Clone the repository and navigate to the project directory:
+
+```bash
+git clone https://github.com/Prosper-Anosike/study-resource-finder.git
+cd study-resource-finder
+```
+
+Install the project dependencies:
+
+```bash
 npm install
+```
+
+### Configure Google Books
+
+To enable Google Books API access during local development, create a `.env.local` file in the project root and add your API key:
+
+```env
+VITE_GOOGLE_BOOKS_API_KEY=your_google_books_api_key
+```
+
+Replace `your_google_books_api_key` with your own Google Books API key.
+
+Keep `.env.local` out of version control. The project uses Vite environment variables, which are embedded into the client-side application and are therefore visible to users. Restrict your API key in Google Cloud instead of treating it as a secret.
+
+Open Library does not require an API key.
+
+### Start the Development Server
+
+Run:
+
+```bash
 npm run dev
 ```
 
-Vite prints the local development URL after startup. Use these commands for checks and a production build:
+Vite will display the local development URL in the terminal. Open that address in your browser to use the application.
 
-```sh
-npm run format
-npm run format:check
-npm run lint
-npm test
-npm run build
-```
+## Available Commands
 
-The static production output is written to `dist/`.
+The following commands are available for formatting, checking, testing, and building the project.
 
-## Render static-site deployment
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the local development server. |
+| `npm run format` | Format the project files. |
+| `npm run format:check` | Check whether files meet the formatting rules. |
+| `npm run lint` | Run the code linter. |
+| `npm test` | Run the automated tests. |
+| `npm run build` | Create the production build. |
 
-Create a **Static Site** in Render connected to this GitHub repository and configure:
+The production build is generated in the `dist/` directory.
 
-| Setting              | Value                                                   |
-| -------------------- | ------------------------------------------------------- |
-| Build command        | `npm install && npm run build`                          |
-| Publish directory    | `dist`                                                  |
-| Environment variable | `VITE_GOOGLE_BOOKS_API_KEY` = your Google Books API key |
+## How Search Works
 
-Add the environment variable in the Render service dashboard; do not commit it to the repository. Vite embeds `VITE_` variables into the browser bundle at build time, so changing this value requires a new build/deploy. The key is visible to users of the deployed site and must be restricted in Google Cloud: limit the key to the **Google Books API** and configure an HTTP referrer website restriction for the final site, such as `https://<your-service-name>.onrender.com/*`. If using a custom domain, include its HTTPS referrer pattern as well. Keep localhost referrers only if they are still needed for local development, and never use an unrestricted production key.
+Study Resource Finder retrieves results from Google Books and Open Library and converts them into a consistent format that the interface can display.
 
-After deployment, open the assigned site domain, check the browser Network panel for a successful Google Books request and an Open Library search response, then exercise search, resource details, filters, and Favorites. Deployment and a final domain/key restriction have not been completed by this repository setup; those steps require access to your Render and Google Cloud accounts.
+The two providers return different data structures, so the application normalizes their responses before rendering resource cards and details.
 
-## Trello planning evidence
+Search requests run concurrently. When one provider fails, the application can still display results from the other provider and report the problem. If both providers fail, the search returns an error that the interface can communicate to the user.
 
-For course submission, provide the real Trello board link and make the planning trail reviewable. The board should show the project goal, phase/feature cards, acceptance criteria or checklists, progress/status, and completed work. Keep useful evidence such as links to the repository/deployed site and dated screenshots or a short completion note on the relevant cards. Do not claim Trello work is complete until the board has been updated and its link is ready to submit.
+Search results are filtered and sorted in the browser without requiring another API request for each change.
 
-## Five-minute demonstration outline
+## Favorites
 
-Use this as a timed recording guide; it is an outline, not a recorded video:
+Favorites are stored locally in the browser using LocalStorage. This allows saved resources to remain available when the page is refreshed or the user returns to the application in the same browser.
 
-| Time      | Demonstration                                                                                                                                                    |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0:00–0:30 | Introduce Study Resource Finder and its purpose: helping students discover study books and learning resources.                                                   |
-| 0:30–1:05 | Identify Google Books and Open Library, then explain that their responses are normalized into one resource shape with provider-specific IDs and metadata arrays. |
-| 1:05–1:55 | Search for a topic, show dynamic results from both sources, source labels, useful metadata, and the loading/result feedback.                                     |
-| 1:55–2:35 | Open a resource's Details dialog, show available metadata and safe provider links, then close it with Escape.                                                    |
-| 2:35–3:20 | Demonstrate a subject/category or year filter, availability, sorting, and reset; show the no-match state if time permits.                                        |
-| 3:20–4:05 | Save a couple of resources, open Favorites, refresh to demonstrate LocalStorage persistence, then remove one.                                                    |
-| 4:05–4:40 | Resize or switch to mobile layout; point out responsive cards, keyboard focus, and restrained effects/reduced-motion support.                                    |
-| 4:40–5:00 | Summarize the result and identify the repository, deployed site, Trello board, and video as submission artifacts.                                                |
-
-Before recording, verify the deployed API key restriction against the final domain, use a reliable search query, avoid exposing credentials in browser tools, and confirm the Favorites page is in the intended demo state.
-
-## Final submission checklist
-
-- [ ] GitHub repository contains the final project and is accessible to the instructor.
-- [ ] Render static site is deployed; its real URL is recorded for submission and both API integrations are checked there.
-- [ ] Google Cloud API key is restricted to Google Books and to the final Render/custom-domain HTTP referrers.
-- [ ] Trello board contains the project plan, acceptance/progress evidence, and is accessible to the instructor.
-- [ ] Approximately five-minute demonstration video is recorded, reviewed for accidental credentials, and its real link is ready to submit.
-
-## Architecture
-
-```text
-index.html                 Home and search-page structure
-favorites.html              Saved-resources page structure
-css/styles.css              Design tokens, shared components, responsive layout
-js/config.js                API endpoint and application configuration
-js/apiClient.js             Provider requests, caching, and combined search
-js/resourceNormalizer.js    Google Books and Open Library normalization
-js/search.js                Search form handling and accessible status states
-js/renderResources.js       Safe, dynamic resource-card rendering
-js/resourceDetails.js       Accessible resource-details dialog shell
-js/favorites.js             Favorites storage and saved-resources page
-js/filtersSort.js            Result category/year/availability filtering and sorting
-js/uiHelpers.js             Shared UI helpers
-js/main.js                  Home-page entry point
-tests/foundation.test.js    Checks for the initial document structure
-tests/apiClient.test.js     Mocked API and normalization tests
-```
-
-The API client is independent of the DOM. It accepts an injectable `fetch` implementation, runs both providers concurrently, returns successful results with provider-specific warnings when one source fails, and throws `CombinedSearchError` if both fail. Successful identical requests are cached in memory per fetch implementation; failed requests are not cached. The home search form uses this combined API, and resource cards and details are built with DOM methods and `textContent`. Filters and sort order are applied to the current normalized collection without additional API calls.
+Favorites are not synchronized between devices or browsers, and the application does not use an account or server-side storage for them.
 
 ## APIs
 
-- **Google Books Volumes API:** `GET https://www.googleapis.com/books/v1/volumes?q={query}&maxResults={count}`. General queries use `q`; title, author, and subject queries use the provider syntax `intitle:`, `inauthor:`, and `subject:`.
-- **Open Library Search API:** `GET https://openlibrary.org/search.json`. General searches use `q`; title, author, and subject searches use their respective query parameters. The request explicitly selects the application fields and asks for a limited number of results.
+### Google Books
 
-Endpoints, result limits, and requested Open Library fields are centralized in `js/config.js`. Configure `VITE_GOOGLE_BOOKS_API_KEY` in the ignored `.env.local` file for local development, then restart Vite to load it. Vite exposes `VITE_` variables to browser code, so this key is not a secret and should be restricted using the provider's key settings. Never commit `.env.local` or place the key in tracked source.
+The Google Books Volumes API provides book information, including titles, authors, descriptions, publication details, and links where available.
 
-### Common resource schema
+API endpoint:
 
-Both providers normalize into the same resource shape:
+`https://www.googleapis.com/books/v1/volumes`
+
+### Open Library
+
+The Open Library Search API provides book search results and associated metadata.
+
+API endpoint:
+
+`https://openlibrary.org/search.json`
+
+Both providers may return incomplete information for some resources. Available details therefore depend on the data supplied by the source.
+
+## Deployment
+
+The application is deployed as a static site on Render.
+
+**Live application:** https://study-resource-finder-spvl.onrender.com/
+
+To deploy your own instance, create a Render Static Site connected to the repository and use these settings:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npm install && npm run build` |
+| Publish directory | `dist` |
+| Environment variable | `VITE_GOOGLE_BOOKS_API_KEY` |
+
+Add the Google Books API key through the Render service's environment settings. Because Vite embeds its environment variables during the build, changes to the key require a new build and deployment.
+
+For production, restrict the Google Books API key in Google Cloud to the required API and configure an HTTP referrer restriction for the deployed website. If you use a custom domain, include the appropriate domain restriction as well.
+
+## Project Structure
 
 ```text
-{
-  id, source, sourceId, title, authors, description, publisher,
-  publishedDate, pageCount, categories, isbn, thumbnail,
-  previewUrl, infoUrl, fullTextAvailable
-}
+study-resource-finder/
+├── css/
+│   └── styles.css
+├── js/
+│   ├── apiClient.js
+│   ├── config.js
+│   ├── favorites.js
+│   ├── filtersSort.js
+│   ├── main.js
+│   ├── renderResources.js
+│   ├── resourceDetails.js
+│   ├── resourceNormalizer.js
+│   ├── search.js
+│   └── uiHelpers.js
+├── tests/
+│   ├── apiClient.test.js
+│   └── foundation.test.js
+├── favorites.html
+├── index.html
+├── package.json
+└── README.md
 ```
 
-`id` is source-prefixed to prevent provider collisions; `source` is `Google Books` or `Open Library`. Missing scalar metadata is `null`, missing authors/categories/ISBNs are empty arrays, and `fullTextAvailable` is `true`, `false`, or `null` when unknown. Open Library Search does not provide a description or page count in the selected fields, so those values remain `null`. External URLs are HTTPS-only and host-validated before being included. API-provided text remains data; UI code must render it as text, never raw HTML.
+### Key Modules
 
-### Favorites storage
+- **`apiClient.js`** handles provider requests, combined searches, and successful-response caching.
+- **`resourceNormalizer.js`** converts Google Books and Open Library responses into a consistent resource structure.
+- **`search.js`** manages search form interactions and status messages.
+- **`renderResources.js`** creates resource cards from search results.
+- **`resourceDetails.js`** manages the resource-details dialog.
+- **`filtersSort.js`** handles result filtering and sorting.
+- **`favorites.js`** manages saved resources and the Favorites page.
+- **`config.js`** centralizes API configuration and search settings.
+- **`main.js`** initializes the home page.
+- **`uiHelpers.js`** contains shared interface utilities.
 
-Favorites are stored as a JSON array under the versioned key `study-resource-finder:favorites:v1`. Each entry contains the normalized provider ID/source plus available title, authors, cover, publication date, description, publisher, page count, categories, ISBNs, preview/information URLs, and full-text availability. Entries are deduplicated by source-prefixed ID. Malformed records are ignored; unreadable storage is reported in the interface. No account or server storage is used.
+## Development Notes
 
-## Project requirements
+The application treats data returned by external APIs as untrusted input. Resource information is inserted into the interface as text rather than interpreted as raw HTML, and external links are validated before being displayed.
 
-- Use semantic HTML, responsive CSS, and vanilla JavaScript ES modules.
-- Do not add React, Vue, Angular, Svelte, or another JavaScript UI framework.
-- Use the proposal palette: primary `#4F46E5`, secondary `#10B981`, background `#F9FAFB`, text `#111827`, and accent `#F59E0B`.
-- Use Inter with sans-serif system fallbacks.
-- Keep resource metadata safe to render; never assume external API content is trusted.
-- Avoid hardcoded sample resource records or claiming unfinished API features work.
+Search responses can be incomplete, and either provider may be temporarily unavailable. The application is designed to handle partial failures where possible and communicate search problems through the interface.
 
-## Implemented project phases
+Favorites are stored locally, so clearing browser storage also removes saved resources.
 
-Phase 1 set up the project structure, page shells, shared visual system, responsive layout, accessible dialog shell, and lightweight development tooling. Phase 2 adds API requests, result normalization, concurrent combined search, partial-failure status, and in-memory request caching. Phase 3 connects the search form to the combined API and renders accessible, responsive resource cards. Phase 4 adds resource details, category/year/availability filtering, sorting, and reset controls. Phase 5 adds localStorage-backed favorites and a persistent Favorites page. Phase 6 refines the visual hierarchy, responsive layouts, focus states, cover fallbacks, and motion effects with reduced-motion support.
+## License
+
+No license has been specified for this project. Unless a license is added to the repository, reuse and redistribution are subject to the applicable copyright rules.
