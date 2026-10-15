@@ -78,14 +78,14 @@ Vite will display the local development URL in the terminal. Open that address i
 
 The following commands are available for formatting, checking, testing, and building the project.
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the local development server. |
-| `npm run format` | Format the project files. |
+| Command                | Purpose                                        |
+| ---------------------- | ---------------------------------------------- |
+| `npm run dev`          | Start the local development server.            |
+| `npm run format`       | Format the project files.                      |
 | `npm run format:check` | Check whether files meet the formatting rules. |
-| `npm run lint` | Run the code linter. |
-| `npm test` | Run the automated tests. |
-| `npm run build` | Create the production build. |
+| `npm run lint`         | Run the code linter.                           |
+| `npm test`             | Run the automated tests.                       |
+| `npm run build`        | Create the production build.                   |
 
 The production build is generated in the `dist/` directory.
 
@@ -133,11 +133,11 @@ The application is deployed as a static site on Render.
 
 To deploy your own instance, create a Render Static Site connected to the repository and use these settings:
 
-| Setting | Value |
-| --- | --- |
-| Build command | `npm install && npm run build` |
-| Publish directory | `dist` |
-| Environment variable | `VITE_GOOGLE_BOOKS_API_KEY` |
+| Setting              | Value                          |
+| -------------------- | ------------------------------ |
+| Build command        | `npm install && npm run build` |
+| Publish directory    | `dist`                         |
+| Environment variable | `VITE_GOOGLE_BOOKS_API_KEY`    |
 
 Add the Google Books API key through the Render service's environment settings. Because Vite embeds its environment variables during the build, changes to the key require a new build and deployment.
 
@@ -166,6 +166,7 @@ study-resource-finder/
 ├── favorites.html
 ├── index.html
 ├── package.json
+├── vite.config.js
 └── README.md
 ```
 
@@ -181,6 +182,7 @@ study-resource-finder/
 - **`config.js`** centralizes API configuration and search settings.
 - **`main.js`** initializes the home page.
 - **`uiHelpers.js`** contains shared interface utilities.
+- **`vite.config.js`** includes both the discover and favorites pages in production builds.
 
 ## Development Notes
 

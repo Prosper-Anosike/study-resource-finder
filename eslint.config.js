@@ -6,7 +6,12 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ["js/**/*.js", "tests/**/*.js", "eslint.config.js"],
+    files: [
+      "js/**/*.js",
+      "tests/**/*.js",
+      "eslint.config.js",
+      "vite.config.js",
+    ],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

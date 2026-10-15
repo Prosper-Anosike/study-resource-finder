@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
-import { URL } from "node:url";
+import { fileURLToPath, URL } from "node:url";
+import viteConfig from "../vite.config.js";
 
 const root = new URL("../", import.meta.url);
 
@@ -22,6 +23,20 @@ test("the required project modules and pages exist", async () => {
   ];
 
   await Promise.all(files.map((file) => access(new URL(file, root))));
+});
+
+test("the production build includes both application pages", () => {
+  const entries = viteConfig.build.rollupOptions.input;
+
+  assert.deepEqual(Object.keys(entries).sort(), ["favorites", "main"]);
+  assert.equal(
+    entries.main,
+    fileURLToPath(new URL("../index.html", import.meta.url)),
+  );
+  assert.equal(
+    entries.favorites,
+    fileURLToPath(new URL("../favorites.html", import.meta.url)),
+  );
 });
 
 test("the home page exposes accessible search, status, results, and dialog landmarks", async () => {
