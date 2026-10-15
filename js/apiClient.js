@@ -10,7 +10,13 @@ import {
 } from "./resourceNormalizer.js";
 
 const SEARCH_TYPES = new Set(["general", "all", "title", "author", "subject"]);
+const MAX_GOOGLE_BOOKS_RETRIES = 2;
+const GOOGLE_BOOKS_RETRY_DELAY_MS = 1000;
 let requestCaches = new WeakMap();
+
+function wait(milliseconds) {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
+}
 
 export class ApiRequestError extends Error {
   constructor(source, message, status = null) {
@@ -144,7 +150,13 @@ function formatHttpError(source, status, statusText, payload, sensitiveValues) {
   }`;
 }
 
-async function fetchJson(url, source, fetchImpl, sensitiveValues = []) {
+async function fetchJson(
+  url,
+  source,
+  fetchImpl,
+  sensitiveValues = [],
+  { maxRetries = 0, retryStatuses = [], delayFn = wait } = {},
+) {
   const cache = getRequestCache(fetchImpl);
   const cacheKey = url.href;
   const cachedResponse = cache.get(cacheKey);
@@ -153,45 +165,55 @@ async function fetchJson(url, source, fetchImpl, sensitiveValues = []) {
   }
 
   const request = (async () => {
-    let response;
-    try {
-      response = await fetchImpl(url.href);
-    } catch (error) {
-      throw new ApiRequestError(
-        source,
-        sanitizeErrorText(
-          error instanceof Error ? error.message : "Network error.",
-          sensitiveValues,
-        ),
-      );
-    }
-
-    if (!response?.ok) {
-      let errorPayload = null;
-      if (source === "Google Books" && typeof response?.json === "function") {
-        try {
-          errorPayload = await response.json();
-        } catch {
-          errorPayload = null;
-        }
-      }
-      throw new ApiRequestError(
-        source,
-        formatHttpError(
+    let retryCount = 0;
+    while (true) {
+      let response;
+      try {
+        response = await fetchImpl(url.href);
+      } catch (error) {
+        throw new ApiRequestError(
           source,
-          response?.status,
-          response?.statusText,
-          errorPayload,
-          sensitiveValues,
-        ),
-        Number.isFinite(response?.status) ? response.status : null,
-      );
-    }
+          sanitizeErrorText(
+            error instanceof Error ? error.message : "Network error.",
+            sensitiveValues,
+          ),
+        );
+      }
 
-    try {
-      return await response.json();
-    } catch {
-      throw new ApiRequestError(source, "The response was not valid JSON.");
+      if (!response?.ok) {
+        let errorPayload = null;
+        if (source === "Google Books" && typeof response?.json === "function") {
+          try {
+            errorPayload = await response.json();
+          } catch {
+            errorPayload = null;
+          }
+        }
+        const error = new ApiRequestError(
+          source,
+          formatHttpError(
+            source,
+            response?.status,
+            response?.statusText,
+            errorPayload,
+            sensitiveValues,
+          ),
+          Number.isFinite(response?.status) ? response.status : null,
+        );
+
+        if (retryCount < maxRetries && retryStatuses.includes(error.status)) {
+          await delayFn(GOOGLE_BOOKS_RETRY_DELAY_MS * 2 ** retryCount);
+          retryCount += 1;
+          continue;
+        }
+        throw error;
+      }
+
+      try {
+        return await response.json();
+      } catch {
+        throw new ApiRequestError(source, "The response was not valid JSON.");
+      }
     }
   })();
 
@@ -235,7 +257,12 @@ function createOpenLibraryUrl(query, type) {
 
 export async function searchGoogleBooks(
   query,
-  { type = "general", fetchImpl, apiKey = GOOGLE_BOOKS_API_KEY } = {},
+  {
+    type = "general",
+    fetchImpl,
+    apiKey = GOOGLE_BOOKS_API_KEY,
+    delayFn = wait,
+  } = {},
 ) {
   const normalizedQuery = normalizeQuery(query);
   const normalizedType = normalizeSearchType(type);
@@ -254,9 +281,17 @@ export async function searchGoogleBooks(
     normalizedType,
     apiKey.trim(),
   );
-  const payload = await fetchJson(url, "Google Books", resolvedFetch, [
-    apiKey.trim(),
-  ]);
+  const payload = await fetchJson(
+    url,
+    "Google Books",
+    resolvedFetch,
+    [apiKey.trim()],
+    {
+      maxRetries: MAX_GOOGLE_BOOKS_RETRIES,
+      retryStatuses: [503],
+      delayFn,
+    },
+  );
   const items = Array.isArray(payload?.items) ? payload.items : [];
   return items.map(normalizeGoogleBook).filter(Boolean);
 }
@@ -280,7 +315,12 @@ export async function searchOpenLibrary(
 
 export async function searchResources(
   query,
-  { type = "general", fetchImpl, apiKey = GOOGLE_BOOKS_API_KEY } = {},
+  {
+    type = "general",
+    fetchImpl,
+    apiKey = GOOGLE_BOOKS_API_KEY,
+    delayFn = wait,
+  } = {},
 ) {
   const normalizedQuery = normalizeQuery(query);
   const normalizedType = normalizeSearchType(type);
@@ -294,6 +334,7 @@ export async function searchResources(
       type: normalizedType,
       fetchImpl: resolvedFetch,
       apiKey,
+      delayFn,
     }),
     searchOpenLibrary(normalizedQuery, {
       type: normalizedType,

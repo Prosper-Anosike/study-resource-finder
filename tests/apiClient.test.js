@@ -263,12 +263,6 @@ test("Google Books HTTP errors preserve status and provide actionable guidance",
       "A rate or quota limit was reached",
       "rateLimitExceeded",
     ],
-    [
-      503,
-      "Service Unavailable",
-      "Google Books is temporarily unavailable. Try again later.",
-      "backendError",
-    ],
   ];
 
   for (const [status, statusText, guidance, reason] of cases) {
@@ -304,6 +298,178 @@ test("Google Books HTTP errors preserve status and provide actionable guidance",
   }
 });
 
+test("Google Books retries one HTTP 503 and normalizes a successful response", async () => {
+  const delays = [];
+  const { fetchImpl, calls } = mockFetch((_, attempt) =>
+    attempt === 1
+      ? mockResponse(
+          { error: { message: "temporarily unavailable" } },
+          { ok: false, status: 503, statusText: "Service Unavailable" },
+        )
+      : mockResponse({ items: [googleVolume()] }),
+  );
+
+  const resources = await searchGoogleBooks("retry-once", {
+    fetchImpl,
+    apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+    delayFn: async (milliseconds) => delays.push(milliseconds),
+  });
+
+  assert.equal(resources.length, 1);
+  assert.equal(resources[0].id, "google-books:google-id-42");
+  assert.equal(calls.length, 2);
+  assert.deepEqual(delays, [1000]);
+});
+
+test("Google Books retries at most twice after consecutive HTTP 503 responses", async () => {
+  const delays = [];
+  const { fetchImpl, calls } = mockFetch((_, attempt) =>
+    attempt < 3
+      ? mockResponse(
+          {},
+          { ok: false, status: 503, statusText: "Service Unavailable" },
+        )
+      : mockResponse({ items: [googleVolume()] }),
+  );
+
+  const resources = await searchGoogleBooks("retry-twice", {
+    fetchImpl,
+    apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+    delayFn: async (milliseconds) => delays.push(milliseconds),
+  });
+
+  assert.equal(resources.length, 1);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(delays, [1000, 2000]);
+});
+
+test("three Google Books HTTP 503 responses preserve the final error and Open Library fallback", async () => {
+  const { fetchImpl, calls } = mockFetch((url) =>
+    url.hostname === "openlibrary.org"
+      ? mockResponse({ docs: [openLibraryDocument()] })
+      : mockResponse(
+          {
+            error: {
+              message: "Service temporarily unavailable.",
+              errors: [{ reason: "backendFailed" }],
+            },
+          },
+          { ok: false, status: 503, statusText: "Service Unavailable" },
+        ),
+  );
+
+  const result = await searchResources("retry-exhausted", {
+    fetchImpl,
+    apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+    delayFn: async () => {},
+  });
+
+  assert.equal(
+    calls.filter((url) => url.hostname === "www.googleapis.com").length,
+    3,
+  );
+  assert.equal(
+    calls.filter((url) => url.hostname === "openlibrary.org").length,
+    1,
+  );
+  assert.equal(result.resources.length, 1);
+  assert.equal(result.resources[0].source, "Open Library");
+  assert.match(result.warnings[0].message, /HTTP 503/);
+  assert.match(result.warnings[0].message, /reason: backendFailed/);
+});
+
+test("a failed Google Books request is not cached as a successful response", async () => {
+  let attempts = 0;
+  const fetchImpl = async () => {
+    attempts += 1;
+    return attempts <= 3
+      ? mockResponse(
+          {},
+          { ok: false, status: 503, statusText: "Service Unavailable" },
+        )
+      : mockResponse({ items: [googleVolume()] });
+  };
+  const options = {
+    fetchImpl,
+    apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+    delayFn: async () => {},
+  };
+
+  await assert.rejects(searchGoogleBooks("failed-not-cached", options), {
+    status: 503,
+  });
+  const resources = await searchGoogleBooks("failed-not-cached", options);
+
+  assert.equal(attempts, 4);
+  assert.equal(resources.length, 1);
+  assert.equal(resources[0].sourceId, "google-id-42");
+});
+
+test("Google Books HTTP 400, 401, and 403 errors are not retried", async () => {
+  for (const status of [400, 401, 403]) {
+    let requests = 0;
+    const fetchImpl = async () => {
+      requests += 1;
+      return mockResponse(
+        {
+          error: {
+            message: status === 400 ? "Invalid query." : "Permission denied.",
+            errors: [
+              { reason: status === 400 ? "invalidQuery" : "keyInvalid" },
+            ],
+          },
+        },
+        {
+          ok: false,
+          status,
+          statusText: status === 403 ? "Forbidden" : "Bad Request",
+        },
+      );
+    };
+
+    await assert.rejects(
+      searchGoogleBooks(`no-retry-${status}`, {
+        fetchImpl,
+        apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+        delayFn: async () => assert.fail("Non-503 errors must not be delayed"),
+      }),
+      (error) =>
+        error instanceof ApiRequestError &&
+        error.status === status &&
+        error.message.includes(
+          status === 400 ? "invalidQuery" : "keyInvalid",
+        ) &&
+        (status !== 403 || error.message.includes("API access was denied")),
+    );
+    assert.equal(requests, 1);
+  }
+});
+
+test("a successful HTTP response with invalid JSON is not retried", async () => {
+  let requests = 0;
+  const fetchImpl = async () => {
+    requests += 1;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("invalid JSON");
+      },
+    };
+  };
+
+  await assert.rejects(
+    searchGoogleBooks("invalid-success-json", {
+      fetchImpl,
+      apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+      delayFn: async () =>
+        assert.fail("JSON parse failures must not be retried"),
+    }),
+    /The response was not valid JSON/,
+  );
+  assert.equal(requests, 1);
+});
+
 test("Google Books error diagnostics tolerate non-JSON bodies", async () => {
   const fetchImpl = async () => ({
     ok: false,
@@ -318,6 +484,7 @@ test("Google Books error diagnostics tolerate non-JSON bodies", async () => {
     searchGoogleBooks("non-json-error", {
       fetchImpl,
       apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+      delayFn: async () => {},
     }),
     (error) =>
       error instanceof ApiRequestError &&
@@ -412,6 +579,7 @@ test("combined search retains successful results and reports the failed provider
   const result = await searchResources("partial-success", {
     fetchImpl,
     apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+    delayFn: async () => {},
   });
   assert.equal(result.resources.length, 1);
   assert.equal(result.resources[0].source, "Open Library");
@@ -433,6 +601,7 @@ test("combined search throws a consistent error when both providers fail", async
     searchResources("total-failure", {
       fetchImpl,
       apiKey: TEST_GOOGLE_BOOKS_API_KEY,
+      delayFn: async () => {},
     }),
     (error) =>
       error instanceof CombinedSearchError &&
